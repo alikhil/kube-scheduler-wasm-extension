@@ -326,13 +326,10 @@ func (h host) k8sSchedulerNodeImageStatesFn(_ context.Context, mod wazeroapi.Mod
 		nodeName = string(b)
 	}
 
-	// ImageStates API has been removed from the framework
-	// For now, return an empty map
-	var imageStates map[string]interface{}
-	_, err := h.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
+	var imageStates map[string]*fwk.ImageStateSummary
+	ni, err := h.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err == nil {
-		// TODO: Find the new API for image states if available
-		imageStates = make(map[string]interface{})
+		imageStates = ni.GetImageStates()
 	}
 
 	b, err := json.Marshal(imageStates)

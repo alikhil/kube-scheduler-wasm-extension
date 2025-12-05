@@ -413,8 +413,11 @@ var _ framework.PreBindPlugin = (*wasmPlugin)(nil)
 
 // PreBindPreFlight implements the same method as documented on framework.PreBindPlugin.
 func (pl *wasmPlugin) PreBindPreFlight(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeName string) *fwk.Status {
-	// This is a new method in the PreBindPlugin interface, we don't implement it in the guest yet
-	return nil
+	if pl.guestInterfaces&iPreBindPlugin == 0 {
+		return fwk.NewStatus(fwk.Skip, "PreBind is not implemented")
+	}
+
+	return fwk.NewStatus(fwk.Success, "")
 }
 
 // PreBind implements the same method as documented on framework.PreBindPlugin.
