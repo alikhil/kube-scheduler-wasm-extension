@@ -26,6 +26,7 @@ import (
 	"github.com/tetratelabs/wazero"
 	wazeroapi "github.com/tetratelabs/wazero/api"
 	"k8s.io/klog/v2"
+	fwk "k8s.io/kube-scheduler/framework"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 )
 
@@ -126,7 +127,7 @@ func (pl *wasmPlugin) newGuest(ctx context.Context) (*guest, error) {
 }
 
 // eventsToRegister calls guestExportEnqueue.
-func (g *guest) eventsToRegister(ctx context.Context) []framework.ClusterEvent {
+func (g *guest) eventsToRegister(ctx context.Context) []fwk.ClusterEvent {
 	defer g.out.Reset()
 	callStack := g.callStack
 	if err := g.enqueueFn.CallWithStack(ctx, callStack); err != nil {
@@ -137,38 +138,38 @@ func (g *guest) eventsToRegister(ctx context.Context) []framework.ClusterEvent {
 }
 
 // preFilter calls guestExportPreFilter.
-func (g *guest) preFilter(ctx context.Context) ([]string, *framework.Status) {
+func (g *guest) preFilter(ctx context.Context) ([]string, *fwk.Status) {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.prefilterFn.CallWithStack(ctx, callStack); err != nil {
-		return nil, framework.AsStatus(decorateError(g.out, guestExportPreFilter, err))
+		return nil, fwk.AsStatus(decorateError(g.out, guestExportPreFilter, err))
 	}
 	nodeNames := paramsFromContext(ctx).resultNodeNames
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return nodeNames, framework.NewStatus(framework.Code(statusCode), statusReason)
+	return nodeNames, fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // filter calls guestExportFilter.
-func (g *guest) filter(ctx context.Context) *framework.Status {
+func (g *guest) filter(ctx context.Context) *fwk.Status {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.filterFn.CallWithStack(ctx, callStack); err != nil {
-		return framework.AsStatus(decorateError(g.out, guestExportFilter, err))
+		return fwk.AsStatus(decorateError(g.out, guestExportFilter, err))
 	}
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return framework.NewStatus(framework.Code(statusCode), statusReason)
+	return fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // postFilter calls guestExportPostFilter.
-func (g *guest) postFilter(ctx context.Context) (*framework.PostFilterResult, *framework.Status) {
+func (g *guest) postFilter(ctx context.Context) (*framework.PostFilterResult, *fwk.Status) {
 	defer g.out.Reset()
 	callStack := g.callStack
 	if err := g.postfilterFn.CallWithStack(ctx, callStack); err != nil {
-		return nil, framework.AsStatus(decorateError(g.out, guestExportPostFilter, err))
+		return nil, fwk.AsStatus(decorateError(g.out, guestExportPostFilter, err))
 	}
 	nominatedNodeName := paramsFromContext(ctx).resultNominatedNodeName
 	nominatingMode := framework.NominatingMode(int32(callStack[0] >> 32))
@@ -177,44 +178,44 @@ func (g *guest) postFilter(ctx context.Context) (*framework.PostFilterResult, *f
 	statusReason := paramsFromContext(ctx).resultStatusReason
 
 	nominatingInfo := &framework.NominatingInfo{NominatedNodeName: nominatedNodeName, NominatingMode: nominatingMode}
-	return &framework.PostFilterResult{NominatingInfo: nominatingInfo}, framework.NewStatus(framework.Code(statusCode), statusReason)
+	return &framework.PostFilterResult{NominatingInfo: nominatingInfo}, fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // preScore calls guestExportPreScore.
-func (g *guest) preScore(ctx context.Context) *framework.Status {
+func (g *guest) preScore(ctx context.Context) *fwk.Status {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.prescoreFn.CallWithStack(ctx, callStack); err != nil {
-		return framework.AsStatus(decorateError(g.out, guestExportPreScore, err))
+		return fwk.AsStatus(decorateError(g.out, guestExportPreScore, err))
 	}
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return framework.NewStatus(framework.Code(statusCode), statusReason)
+	return fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // score calls guestExportScore.
-func (g *guest) score(ctx context.Context) (int64, *framework.Status) {
+func (g *guest) score(ctx context.Context) (int64, *fwk.Status) {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.scoreFn.CallWithStack(ctx, callStack); err != nil {
-		return 0, framework.AsStatus(decorateError(g.out, guestExportScore, err))
+		return 0, fwk.AsStatus(decorateError(g.out, guestExportScore, err))
 	}
 
 	score := int32(callStack[0] >> 32)
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return int64(score), framework.NewStatus(framework.Code(statusCode), statusReason)
+	return int64(score), fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // normalizeScore calls guestExportNormalizeScore.
-func (g *guest) normalizeScore(ctx context.Context) (framework.NodeScoreList, *framework.Status) {
+func (g *guest) normalizeScore(ctx context.Context) (framework.NodeScoreList, *fwk.Status) {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.normalizescoreFn.CallWithStack(ctx, callStack); err != nil {
-		return nil, framework.AsStatus(decorateError(g.out, guestExportNormalizeScore, err))
+		return nil, fwk.AsStatus(decorateError(g.out, guestExportNormalizeScore, err))
 	}
 
 	statusCode := int32(callStack[0])
@@ -225,21 +226,21 @@ func (g *guest) normalizeScore(ctx context.Context) (framework.NodeScoreList, *f
 		normalizedScoreList = paramsFromContext(ctx).nodeScoreList
 	}
 
-	return normalizedScoreList, framework.NewStatus(framework.Code(statusCode), statusReason)
+	return normalizedScoreList, fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // reserve calls guestExportReserve.
-func (g *guest) reserve(ctx context.Context) *framework.Status {
+func (g *guest) reserve(ctx context.Context) *fwk.Status {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.reserveFn.CallWithStack(ctx, callStack); err != nil {
-		return framework.AsStatus(decorateError(g.out, guestExportReserve, err))
+		return fwk.AsStatus(decorateError(g.out, guestExportReserve, err))
 	}
 
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return framework.NewStatus(framework.Code(statusCode), statusReason)
+	return fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // unreserve calls guestExportUnreserve.
@@ -254,46 +255,46 @@ func (g *guest) unreserve(ctx context.Context) {
 }
 
 // permit calls guestExportPermit.
-func (g *guest) permit(ctx context.Context) (*framework.Status, time.Duration) {
+func (g *guest) permit(ctx context.Context) (*fwk.Status, time.Duration) {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.permitFn.CallWithStack(ctx, callStack); err != nil {
-		return framework.AsStatus(decorateError(g.out, guestExportPermit, err)), 0
+		return fwk.AsStatus(decorateError(g.out, guestExportPermit, err)), 0
 	}
 
 	statusCode := int32(callStack[0] >> 32)
 	timeoutMilliSeconds := uint32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return framework.NewStatus(framework.Code(statusCode), statusReason), time.Duration(timeoutMilliSeconds) * time.Millisecond
+	return fwk.NewStatus(fwk.Code(statusCode), statusReason), time.Duration(timeoutMilliSeconds) * time.Millisecond
 }
 
 // preBind calls guestExportPreBind.
-func (g *guest) preBind(ctx context.Context) *framework.Status {
+func (g *guest) preBind(ctx context.Context) *fwk.Status {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.prebindFn.CallWithStack(ctx, callStack); err != nil {
-		return framework.AsStatus(decorateError(g.out, guestExportPreBind, err))
+		return fwk.AsStatus(decorateError(g.out, guestExportPreBind, err))
 	}
 
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return framework.NewStatus(framework.Code(statusCode), statusReason)
+	return fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // bind calls guestExportBind.
-func (g *guest) bind(ctx context.Context) *framework.Status {
+func (g *guest) bind(ctx context.Context) *fwk.Status {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.bindFn.CallWithStack(ctx, callStack); err != nil {
-		return framework.AsStatus(decorateError(g.out, guestExportBind, err))
+		return fwk.AsStatus(decorateError(g.out, guestExportBind, err))
 	}
 
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return framework.NewStatus(framework.Code(statusCode), statusReason)
+	return fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // postBind calls guestExportPostBind.
@@ -307,31 +308,31 @@ func (g *guest) postBind(ctx context.Context) {
 }
 
 // addPod calls guestExportAddPod.
-func (g *guest) addPod(ctx context.Context) *framework.Status {
+func (g *guest) addPod(ctx context.Context) *fwk.Status {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.addpodFn.CallWithStack(ctx, callStack); err != nil {
-		return framework.AsStatus(decorateError(g.out, guestExportAddPod, err))
+		return fwk.AsStatus(decorateError(g.out, guestExportAddPod, err))
 	}
 
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return framework.NewStatus(framework.Code(statusCode), statusReason)
+	return fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 // removePod calls guestExportRemovePod.
-func (g *guest) removePod(ctx context.Context) *framework.Status {
+func (g *guest) removePod(ctx context.Context) *fwk.Status {
 	defer g.out.Reset()
 	callStack := g.callStack
 
 	if err := g.removepodFn.CallWithStack(ctx, callStack); err != nil {
-		return framework.AsStatus(decorateError(g.out, guestExportRemovePod, err))
+		return fwk.AsStatus(decorateError(g.out, guestExportRemovePod, err))
 	}
 
 	statusCode := int32(callStack[0])
 	statusReason := paramsFromContext(ctx).resultStatusReason
-	return framework.NewStatus(framework.Code(statusCode), statusReason)
+	return fwk.NewStatus(fwk.Code(statusCode), statusReason)
 }
 
 func decorateError(out fmt.Stringer, fn string, err error) error {

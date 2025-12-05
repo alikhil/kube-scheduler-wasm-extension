@@ -409,7 +409,7 @@ func TestPreFilter(t *testing.T) {
 		globals               map[string]int32
 		pod                   *v1.Pod
 		expectedResult        *framework.PreFilterResult
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 	}{
 		{
@@ -511,7 +511,7 @@ func TestFilter(t *testing.T) {
 		globals               map[string]int32
 		pod                   *v1.Pod
 		node                  *v1.Node
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 	}{
 		{
@@ -606,14 +606,14 @@ func TestPostFilter(t *testing.T) {
 		pod                   *v1.Pod
 		nodeToStatusMap       map[string]*framework.Status
 		expectedResult        *framework.PostFilterResult
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 	}{
 		{
 			name:               "success",
 			args:               []string{"test", "postFilter"},
 			pod:                test.PodSmall,
-			nodeToStatusMap:    map[string]*framework.Status{test.NodeSmallName: framework.NewStatus(framework.Success, "")},
+			nodeToStatusMap:    map[string]*framework.Status{test.NodeSmallName: fwk.NewStatus(framework.Success, "")},
 			expectedResult:     &framework.PostFilterResult{NominatingInfo: &framework.NominatingInfo{NominatedNodeName: "good-node", NominatingMode: framework.ModeOverride}},
 			expectedStatusCode: framework.Success,
 		},
@@ -621,7 +621,7 @@ func TestPostFilter(t *testing.T) {
 			name:                  "unschedulable",
 			args:                  []string{"test", "postFilter"},
 			pod:                   test.PodSmall,
-			nodeToStatusMap:       map[string]*framework.Status{test.NodeSmallName: framework.NewStatus(framework.Unschedulable, "")},
+			nodeToStatusMap:       map[string]*framework.Status{test.NodeSmallName: fwk.NewStatus(framework.Unschedulable, "")},
 			expectedResult:        &framework.PostFilterResult{NominatingInfo: &framework.NominatingInfo{NominatedNodeName: "good-node", NominatingMode: framework.ModeNoop}},
 			expectedStatusMessage: "good-node is unschedulable",
 			expectedStatusCode:    framework.UnschedulableAndUnresolvable,
@@ -715,7 +715,7 @@ func TestPreScore(t *testing.T) {
 		globals               map[string]int32
 		pod                   *v1.Pod
 		nodes                 []*v1.Node
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 		expectedError         string
 	}{
@@ -820,7 +820,7 @@ func TestScore(t *testing.T) {
 		pod                   *v1.Pod
 		nodeName              string
 		expectedScore         int64
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 	}{
 		{
@@ -932,7 +932,7 @@ func TestNormalizeScore(t *testing.T) {
 		globals               map[string]int32
 		pod                   *v1.Pod
 		nodeScoreList         framework.NodeScoreList
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 		expectedError         string
 		expectedNodeScoreList framework.NodeScoreList
@@ -1029,7 +1029,7 @@ func TestReserve(t *testing.T) {
 		globals                map[string]int32
 		pod                    *v1.Pod
 		nodeName               string
-		expectedStatusCode     framework.Code
+		expectedStatusCode     fwk.Code
 		expectedStatusMessage  string
 		expectedUnreserveError string
 	}{
@@ -1128,7 +1128,7 @@ func TestPermit(t *testing.T) {
 		globals               map[string]int32
 		pod                   *v1.Pod
 		nodeName              string
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 		expectedTimeout       time.Duration
 	}{
@@ -1219,7 +1219,7 @@ func TestPreBind(t *testing.T) {
 		globals               map[string]int32
 		pod                   *v1.Pod
 		nodeName              string
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 	}{
 		{
@@ -1304,7 +1304,7 @@ func TestBind(t *testing.T) {
 		globals               map[string]int32
 		pod                   *v1.Pod
 		nodeName              string
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 	}{
 		{
@@ -1404,7 +1404,7 @@ func TestPostBind(t *testing.T) {
 			nodeName: "bad",
 			expectedError: `"failed postbind" err=<
 	wasm: postbind error: panic: name is bad
-	
+
 	wasm error: unreachable
 	wasm stack trace:
 		main.runtime._panic(i32,i32)
@@ -1486,7 +1486,7 @@ func TestAddPod(t *testing.T) {
 		pod                   *v1.Pod
 		podInfo               framework.PodInfo
 		node                  *v1.Node
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 	}{
 		{
@@ -1584,7 +1584,7 @@ func TestRemovePod(t *testing.T) {
 		pod                   *v1.Pod
 		podInfo               framework.PodInfo
 		node                  *v1.Node
-		expectedStatusCode    framework.Code
+		expectedStatusCode    fwk.Code
 		expectedStatusMessage string
 	}{
 		{
@@ -1727,7 +1727,7 @@ func TestRejectWaitingPod(t *testing.T) {
 		pod                *v1.Pod
 		args               []string
 		expectedUID        types.UID
-		expectedStatusCode framework.Code
+		expectedStatusCode fwk.Code
 		expectedStatusMsg  string
 	}{
 		{
@@ -1783,7 +1783,7 @@ func TestGetWaitingPod(t *testing.T) {
 		pod                *v1.Pod
 		args               []string
 		expectedWaitingPod framework.WaitingPod
-		expectedStatusCode framework.Code
+		expectedStatusCode fwk.Code
 		expectedStatusMsg  string
 	}{
 		{

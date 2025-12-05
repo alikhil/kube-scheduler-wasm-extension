@@ -20,7 +20,7 @@ import (
 	"encoding/binary"
 	"strconv"
 
-	"k8s.io/kubernetes/pkg/scheduler/framework"
+	fwk "k8s.io/kube-scheduler/framework"
 )
 
 // gvk are the framework.GVK defined in the Wasm ABI.
@@ -41,14 +41,14 @@ const (
 	gvkWildCard
 )
 
-func (gvk gvk) toEventResource() framework.EventResource {
+func (gvk gvk) toEventResource() fwk.EventResource {
 	if int(gvk) < len(gvkToEventResource) {
 		return gvkToEventResource[gvk]
 	}
-	return framework.EventResource("EventResource(" + strconv.Itoa(int(gvk)) + ")")
+	return fwk.EventResource("EventResource(" + strconv.Itoa(int(gvk)) + ")")
 }
 
-var gvkToEventResource = [...]framework.EventResource{
+var gvkToEventResource = [...]fwk.EventResource{
 	"Pod",
 	"Node",
 	"PersistentVolume",
@@ -63,14 +63,14 @@ var gvkToEventResource = [...]framework.EventResource{
 }
 
 // sizeEncodedClusterEvent is the size in bytes to encode
-// framework.ClusterEvent with 32-bit little endian gvk and ActionType
+// fwk.ClusterEvent with 32-bit little endian gvk and ActionType
 const sizeEncodedClusterEvent = 4 + 4
 
-func decodeClusterEvents(b []byte) (clusterEvents []framework.ClusterEvent) {
+func decodeClusterEvents(b []byte) (clusterEvents []fwk.ClusterEvent) {
 	for i := 0; i+sizeEncodedClusterEvent <= len(b); i += sizeEncodedClusterEvent {
-		clusterEvents = append(clusterEvents, framework.ClusterEvent{
+		clusterEvents = append(clusterEvents, fwk.ClusterEvent{
 			Resource:   gvk(binary.LittleEndian.Uint32(b[i:])).toEventResource(),
-			ActionType: framework.ActionType(binary.LittleEndian.Uint32(b[i+4:])),
+			ActionType: fwk.ActionType(binary.LittleEndian.Uint32(b[i+4:])),
 		})
 	}
 	return

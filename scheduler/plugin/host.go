@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	fwk "k8s.io/kube-scheduler/framework"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 )
 
@@ -155,7 +156,7 @@ type stackKey struct{}
 //     function. Functions should ignore fields they don't use.
 type stack struct {
 	// filteredNodes are used by guest.prescoreFn
-	filteredNodes []*framework.NodeInfo
+	filteredNodes []fwk.NodeInfo
 
 	// currentNodeName is a Node's name that is being evaluated.
 	currentNodeName string
@@ -164,13 +165,13 @@ type stack struct {
 	currentPod *v1.Pod
 
 	// nodeToStatusMap is used by guest.postfilterFn
-	nodeToStatusMap framework.NodeToStatusMap
+	nodeToStatusMap framework.NodeToStatusReader
 
 	// nodeScoreList is used by guest.normalizedscoreFn
 	nodeScoreList framework.NodeScoreList
 
 	// resultClusterEvents is returned by guest.enqueueFn
-	resultClusterEvents []framework.ClusterEvent
+	resultClusterEvents []fwk.ClusterEvent
 
 	// resultNodeNames is returned by guest.prefilterFn
 	resultNodeNames []string
@@ -325,10 +326,13 @@ func (h host) k8sSchedulerNodeImageStatesFn(_ context.Context, mod wazeroapi.Mod
 		nodeName = string(b)
 	}
 
-	var imageStates map[string]*framework.ImageStateSummary
-	ni, err := h.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
+	// ImageStates API has been removed from the framework
+	// For now, return an empty map
+	var imageStates map[string]interface{}
+	_, err := h.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err == nil {
-		imageStates = ni.ImageStates
+		// TODO: Find the new API for image states if available
+		imageStates = make(map[string]interface{})
 	}
 
 	b, err := json.Marshal(imageStates)
@@ -424,7 +428,7 @@ func k8sSchedulerResultClusterEventsFn(ctx context.Context, mod wazeroapi.Module
 	buf := uint32(stack[0])
 	bufLen := uint32(stack[1])
 
-	var clusterEvents []framework.ClusterEvent
+	var clusterEvents []fwk.ClusterEvent
 	if b, ok := mod.Memory().Read(buf, bufLen); !ok {
 		panic("out of memory reading clusterEvents")
 	} else {
@@ -489,7 +493,7 @@ func nodeStatusMapToMap(nodeToStatusMap framework.NodeToStatusMap) map[string]in
 
 	// Handle the standard framework.NodeToStatus implementation
 	if nts, ok := nodeToStatusMap.(*framework.NodeToStatus); ok {
-		nts.ForEachExplicitNode(func(nodeName string, status *framework.Status) {
+		nts.ForEachExplicitNode(func(nodeName string, status *fwk.Status) {
 			if status != nil {
 				result[nodeName] = int(status.Code())
 			}

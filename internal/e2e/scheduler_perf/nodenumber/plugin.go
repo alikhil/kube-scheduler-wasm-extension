@@ -89,7 +89,7 @@ func (pl *NodeNumber) Score(ctx context.Context, state *framework.CycleState, po
 
 	s, ok := data.(*preScoreState)
 	if !ok {
-		return 0, framework.AsStatus(fmt.Errorf("fetched pre score state is not *preScoreState, but %T, %w", data, ErrNotExpectedPreScoreState))
+		return 0, fwk.AsStatus(fmt.Errorf("fetched pre score state is not *preScoreState, but %T, %w", data, ErrNotExpectedPreScoreState))
 	}
 
 	nodeName := ni.GetName()

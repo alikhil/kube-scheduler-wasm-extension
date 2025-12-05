@@ -28,7 +28,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
+	fwk "k8s.io/kube-scheduler/framework"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
+
 	frameworkruntime "k8s.io/kubernetes/pkg/scheduler/framework/runtime"
 )
 
@@ -138,17 +140,17 @@ var _ framework.EnqueueExtensions = (*wasmPlugin)(nil)
 
 // allClusterEvents is copied from framework.go, to avoid the complexity of
 // conditionally implementing framework.EnqueueExtensions.
-var allClusterEvents = []framework.ClusterEventWithHint{
-	{Event: framework.ClusterEvent{Resource: framework.Pod, ActionType: framework.All}},
-	{Event: framework.ClusterEvent{Resource: framework.Node, ActionType: framework.All}},
-	{Event: framework.ClusterEvent{Resource: framework.CSINode, ActionType: framework.All}},
-	{Event: framework.ClusterEvent{Resource: framework.PersistentVolume, ActionType: framework.All}},
-	{Event: framework.ClusterEvent{Resource: framework.PersistentVolumeClaim, ActionType: framework.All}},
-	{Event: framework.ClusterEvent{Resource: framework.StorageClass, ActionType: framework.All}},
+var allClusterEvents = []fwk.ClusterEventWithHint{
+	{Event: fwk.ClusterEvent{Resource: fwk.Pod, ActionType: fwk.All}},
+	{Event: fwk.ClusterEvent{Resource: fwk.Node, ActionType: fwk.All}},
+	{Event: fwk.ClusterEvent{Resource: fwk.CSINode, ActionType: fwk.All}},
+	{Event: fwk.ClusterEvent{Resource: fwk.PersistentVolume, ActionType: fwk.All}},
+	{Event: fwk.ClusterEvent{Resource: fwk.PersistentVolumeClaim, ActionType: fwk.All}},
+	{Event: fwk.ClusterEvent{Resource: fwk.StorageClass, ActionType: fwk.All}},
 }
 
 // EventsToRegister implements the same method as documented on framework.EnqueueExtensions.
-func (pl *wasmPlugin) EventsToRegister(ctx context.Context) (clusterEvents []framework.ClusterEventWithHint, err error) {
+func (pl *wasmPlugin) EventsToRegister(ctx context.Context) (clusterEvents []fwk.ClusterEventWithHint, err error) {
 	// We always implement EventsToRegister, even when the guest doesn't
 	if pl.guestInterfaces&iEnqueueExtensions == 0 {
 		return allClusterEvents, nil // unimplemented
@@ -176,9 +178,9 @@ func (pl *wasmPlugin) EventsToRegister(ctx context.Context) (clusterEvents []fra
 		// Only override the default cluster events if at least one was
 		// returned from the guest
 		if ce := g.eventsToRegister(ctx); len(ce) != 0 {
-			clusterEventsWithHints := make([]framework.ClusterEventWithHint, len(ce))
+			clusterEventsWithHints := make([]fwk.ClusterEventWithHint, len(ce))
 			for i, e := range ce {
-				clusterEventsWithHints[i] = framework.ClusterEventWithHint{Event: e}
+				clusterEventsWithHints[i] = fwk.ClusterEventWithHint{Event: e}
 			}
 			clusterEvents = clusterEventsWithHints
 		}
@@ -191,7 +193,7 @@ func (pl *wasmPlugin) EventsToRegister(ctx context.Context) (clusterEvents []fra
 var _ framework.PreFilterExtensions = (*wasmPlugin)(nil)
 
 // AddPod implements the same method as documented on framework.PreFilterExtensions.
-func (pl *wasmPlugin) AddPod(ctx context.Context, state *framework.CycleState, podToSchedule *v1.Pod, podInfoToAdd *framework.PodInfo, nodeInfo *framework.NodeInfo) (status *framework.Status) {
+func (pl *wasmPlugin) AddPod(ctx context.Context, state fwk.CycleState, podToSchedule *v1.Pod, podInfoToAdd fwk.PodInfo, nodeInfo fwk.NodeInfo) (status *fwk.Status) {
 	// We implement PreFilterExtensions with FilterPlugin, even when the guest doesn't.
 	if pl.guestInterfaces&iPreFilterExtensions == 0 {
 		return nil // unimplemented
@@ -199,18 +201,18 @@ func (pl *wasmPlugin) AddPod(ctx context.Context, state *framework.CycleState, p
 
 	// Add the stack to the go context so that the corresponding host function
 	// can look them up.
-	params := &stack{currentPod: podToSchedule, targetPod: podInfoToAdd.Pod, currentNodeName: nodeInfo.Node().Name}
+	params := &stack{currentPod: podToSchedule, targetPod: podInfoToAdd.GetPod(), currentNodeName: nodeInfo.Node().Name}
 	ctx = context.WithValue(ctx, stackKey{}, params)
 	if err := pl.pool.doWithSchedulingGuest(ctx, podToSchedule.UID, func(g *guest) {
 		status = g.addPod(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
 	return status
 }
 
 // RemovePod implements the same method as documented on framework.PreFilterExtensions.
-func (pl *wasmPlugin) RemovePod(ctx context.Context, state *framework.CycleState, podToSchedule *v1.Pod, podInfoToRemove *framework.PodInfo, nodeInfo *framework.NodeInfo) (status *framework.Status) {
+func (pl *wasmPlugin) RemovePod(ctx context.Context, state fwk.CycleState, podToSchedule *v1.Pod, podInfoToRemove fwk.PodInfo, nodeInfo fwk.NodeInfo) (status *fwk.Status) {
 	// We implement PreFilterExtensions with FilterPlugin, even when the guest doesn't.
 	if pl.guestInterfaces&iPreFilterExtensions == 0 {
 		return nil // unimplemented
@@ -218,12 +220,12 @@ func (pl *wasmPlugin) RemovePod(ctx context.Context, state *framework.CycleState
 
 	// Add the stack to the go context so that the corresponding host function
 	// can look them up.
-	params := &stack{currentPod: podToSchedule, targetPod: podInfoToRemove.Pod, currentNodeName: nodeInfo.Node().Name}
+	params := &stack{currentPod: podToSchedule, targetPod: podInfoToRemove.GetPod(), currentNodeName: nodeInfo.Node().Name}
 	ctx = context.WithValue(ctx, stackKey{}, params)
 	if err := pl.pool.doWithSchedulingGuest(ctx, podToSchedule.UID, func(g *guest) {
 		status = g.removePod(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
 	return status
 }
@@ -242,7 +244,7 @@ func (pl *wasmPlugin) PreFilterExtensions() framework.PreFilterExtensions {
 
 // PreFilter implements the same method as documented on
 // framework.PreFilterPlugin.
-func (pl *wasmPlugin) PreFilter(ctx context.Context, _ *framework.CycleState, pod *v1.Pod) (result *framework.PreFilterResult, status *framework.Status) {
+func (pl *wasmPlugin) PreFilter(ctx context.Context, _ fwk.CycleState, pod *v1.Pod, nodes []fwk.NodeInfo) (result *framework.PreFilterResult, status *fwk.Status) {
 	// We implement PreFilterPlugin with FilterPlugin, even when the guest doesn't.
 	if pl.guestInterfaces&iPreFilterPlugin == 0 {
 		return nil, nil // unimplemented
@@ -259,7 +261,7 @@ func (pl *wasmPlugin) PreFilter(ctx context.Context, _ *framework.CycleState, po
 			result = &framework.PreFilterResult{NodeNames: sets.New(nodeNames...)}
 		}
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
 	return
 }
@@ -267,23 +269,24 @@ func (pl *wasmPlugin) PreFilter(ctx context.Context, _ *framework.CycleState, po
 var _ framework.FilterPlugin = (*wasmPlugin)(nil)
 
 // Filter implements the same method as documented on framework.FilterPlugin.
-func (pl *wasmPlugin) Filter(ctx context.Context, _ *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) (status *framework.Status) {
+func (pl *wasmPlugin) Filter(ctx context.Context, _ fwk.CycleState, pod *v1.Pod, nodeInfo fwk.NodeInfo) *fwk.Status {
 	// Add the stack to the go context so that the corresponding host function
 	// can look them up.
 	params := &stack{currentPod: pod, currentNodeName: nodeInfo.Node().Name}
 	ctx = context.WithValue(ctx, stackKey{}, params)
+	var status *fwk.Status
 	if err := pl.pool.doWithSchedulingGuest(ctx, pod.UID, func(g *guest) {
 		status = g.filter(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
-	return
+	return status
 }
 
 var _ framework.PostFilterPlugin = (*wasmPlugin)(nil)
 
 // PostFilter implements the same method as documented on framework.PostFilterPlugin.
-func (pl *wasmPlugin) PostFilter(ctx context.Context, state *framework.CycleState, pod *v1.Pod, filteredNodeStatusMap framework.NodeToStatusMap) (result *framework.PostFilterResult, status *framework.Status) {
+func (pl *wasmPlugin) PostFilter(ctx context.Context, state fwk.CycleState, pod *v1.Pod, filteredNodeStatusMap framework.NodeToStatusReader) (result *framework.PostFilterResult, status *fwk.Status) {
 	// We implement PostFilterPlugin with FilterPlugin, even when the guest doesn't.
 	if pl.guestInterfaces&iPostFilterPlugin == 0 {
 		return nil, nil // unimplemented
@@ -296,7 +299,7 @@ func (pl *wasmPlugin) PostFilter(ctx context.Context, state *framework.CycleStat
 	if err := pl.pool.doWithSchedulingGuest(ctx, pod.UID, func(g *guest) {
 		result, status = g.postFilter(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
 	return
 }
@@ -304,7 +307,7 @@ func (pl *wasmPlugin) PostFilter(ctx context.Context, state *framework.CycleStat
 var _ framework.PreScorePlugin = (*wasmPlugin)(nil)
 
 // PreScore implements the same method as documented on framework.PreScorePlugin.
-func (pl *wasmPlugin) PreScore(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeInfoList []*framework.NodeInfo) (status *framework.Status) {
+func (pl *wasmPlugin) PreScore(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeInfoList []fwk.NodeInfo) *fwk.Status {
 	// We implement PreScorePlugin with ScorePlugin, even when the guest doesn't.
 	if pl.guestInterfaces&iPreScorePlugin == 0 {
 		return nil // unimplemented
@@ -314,18 +317,19 @@ func (pl *wasmPlugin) PreScore(ctx context.Context, state *framework.CycleState,
 	// can look them up.
 	params := &stack{currentPod: pod, filteredNodes: nodeInfoList}
 	ctx = context.WithValue(ctx, stackKey{}, params)
+	var status *fwk.Status
 	if err := pl.pool.doWithSchedulingGuest(ctx, pod.UID, func(g *guest) {
 		status = g.preScore(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
-	return
+	return status
 }
 
 var _ framework.ScoreExtensions = (*wasmPlugin)(nil)
 
 // NormalizeScore implements the same method as documented on framework.ScoreExtensions.
-func (pl *wasmPlugin) NormalizeScore(ctx context.Context, state *framework.CycleState, pod *v1.Pod, scores framework.NodeScoreList) (status *framework.Status) {
+func (pl *wasmPlugin) NormalizeScore(ctx context.Context, state fwk.CycleState, pod *v1.Pod, scores framework.NodeScoreList) *fwk.Status {
 	// We implement ScoreExtensions with ScorePlugin, even when the guest doesn't.
 	if pl.guestInterfaces&iScoreExtensions == 0 {
 		return nil // unimplemented
@@ -333,10 +337,11 @@ func (pl *wasmPlugin) NormalizeScore(ctx context.Context, state *framework.Cycle
 	params := &stack{currentPod: pod, nodeScoreList: scores}
 	ctx = context.WithValue(ctx, stackKey{}, params)
 	var updatedScores framework.NodeScoreList
+	var status *fwk.Status
 	if err := pl.pool.doWithSchedulingGuest(ctx, pod.UID, func(g *guest) {
 		updatedScores, status = g.normalizeScore(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
 	if len(scores) != len(updatedScores) {
 		panic(fmt.Sprintf("size mismatch: scores has %d elements, but updatedScores has %d elements", len(scores), len(updatedScores)))
@@ -345,23 +350,25 @@ func (pl *wasmPlugin) NormalizeScore(ctx context.Context, state *framework.Cycle
 	for i := range scores {
 		scores[i] = updatedScores[i]
 	}
-	return
+	return status
 }
 
 var _ framework.ScorePlugin = (*wasmPlugin)(nil)
 
 // Score implements the same method as documented on framework.ScorePlugin.
-func (pl *wasmPlugin) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) (score int64, status *framework.Status) {
+func (pl *wasmPlugin) Score(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeInfo fwk.NodeInfo) (int64, *fwk.Status) {
 	// Add the stack to the go context so that the corresponding host function
 	// can look them up.
-	params := &stack{currentPod: pod, currentNodeName: nodeInfo.GetName()}
+	params := &stack{currentPod: pod, currentNodeName: nodeInfo.Node().Name}
 	ctx = context.WithValue(ctx, stackKey{}, params)
+	var score int64
+	var status *fwk.Status
 	if err := pl.pool.doWithSchedulingGuest(ctx, pod.UID, func(g *guest) {
 		score, status = g.score(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
-	return
+	return score, status
 }
 
 // ScoreExtensions implements the same method as documented on framework.ScorePlugin.
@@ -376,19 +383,20 @@ func (pl *wasmPlugin) ScoreExtensions() framework.ScoreExtensions {
 var _ framework.ReservePlugin = (*wasmPlugin)(nil)
 
 // Reserve implements the same method as documented on framework.ReservePlugin.
-func (pl *wasmPlugin) Reserve(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (status *framework.Status) {
+func (pl *wasmPlugin) Reserve(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeName string) *fwk.Status {
 	params := &stack{currentPod: pod, currentNodeName: nodeName}
 	ctx = context.WithValue(ctx, stackKey{}, params)
+	var status *fwk.Status
 	if err := pl.pool.doWithSchedulingGuest(ctx, pod.UID, func(g *guest) {
 		status = g.reserve(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
-	return
+	return status
 }
 
 // Unreserve implements the same method as documented on framework.ReservePlugin.
-func (pl *wasmPlugin) Unreserve(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) {
+func (pl *wasmPlugin) Unreserve(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeName string) {
 	defer pl.pool.freeFromBinding(pod.UID) // the cycle is over, put it back into the pool.
 
 	params := &stack{currentPod: pod, currentNodeName: nodeName}
@@ -403,8 +411,14 @@ func (pl *wasmPlugin) Unreserve(ctx context.Context, state *framework.CycleState
 
 var _ framework.PreBindPlugin = (*wasmPlugin)(nil)
 
+// PreBindPreFlight implements the same method as documented on framework.PreBindPlugin.
+func (pl *wasmPlugin) PreBindPreFlight(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeName string) *fwk.Status {
+	// This is a new method in the PreBindPlugin interface, we don't implement it in the guest yet
+	return nil
+}
+
 // PreBind implements the same method as documented on framework.PreBindPlugin.
-func (pl *wasmPlugin) PreBind(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (status *framework.Status) {
+func (pl *wasmPlugin) PreBind(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeName string) *fwk.Status {
 	// We implement PreBindPlugin with BindPlugin, even when the guest doesn't.
 	if pl.guestInterfaces&iPreBindPlugin == 0 {
 		return nil // unimplemented
@@ -415,14 +429,14 @@ func (pl *wasmPlugin) PreBind(ctx context.Context, state *framework.CycleState, 
 	params := &stack{currentPod: pod, currentNodeName: nodeName}
 	ctx = context.WithValue(ctx, stackKey{}, params)
 	g := pl.pool.getForBinding(pod.UID)
-	status = g.preBind(ctx)
-	return
+	status := g.preBind(ctx)
+	return status
 }
 
 var _ framework.PostBindPlugin = (*wasmPlugin)(nil)
 
 // PostBind implements the same method as documented on framework.PostBindPlugin.
-func (pl *wasmPlugin) PostBind(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) {
+func (pl *wasmPlugin) PostBind(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeName string) {
 	// We implement PostBindPlugin with BindPlugin, even when the guest doesn't.
 	if pl.guestInterfaces&iPostBindPlugin == 0 {
 		return // unimplemented
@@ -438,22 +452,24 @@ func (pl *wasmPlugin) PostBind(ctx context.Context, state *framework.CycleState,
 var _ framework.PermitPlugin = (*wasmPlugin)(nil)
 
 // Permit implements the same method as documented on framework.PermitPlugin.
-func (pl *wasmPlugin) Permit(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (status *framework.Status, timeout time.Duration) {
+func (pl *wasmPlugin) Permit(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeName string) (*fwk.Status, time.Duration) {
 	params := &stack{currentPod: pod, currentNodeName: nodeName}
 	ctx = context.WithValue(ctx, stackKey{}, params)
+	var status *fwk.Status
+	var timeout time.Duration
 	if err := pl.pool.doWithSchedulingGuest(ctx, pod.UID, func(g *guest) {
 		status, timeout = g.permit(ctx)
 	}); err != nil {
-		status = framework.AsStatus(err)
+		status = fwk.AsStatus(err)
 	}
 	_ = pl.pool.getForBinding(pod.UID)
-	return
+	return status, timeout
 }
 
 var _ framework.BindPlugin = (*wasmPlugin)(nil)
 
 // Bind implements the same method as documented on framework.BindPlugin.
-func (pl *wasmPlugin) Bind(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (status *framework.Status) {
+func (pl *wasmPlugin) Bind(ctx context.Context, state fwk.CycleState, pod *v1.Pod, nodeName string) (status *fwk.Status) {
 	// Add the stack to the go context so that the corresponding host function
 	// can look them up.
 	params := &stack{currentPod: pod, currentNodeName: nodeName}

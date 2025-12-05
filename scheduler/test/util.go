@@ -14,6 +14,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
+	fwk "k8s.io/kube-scheduler/framework"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 	"k8s.io/kubernetes/pkg/scheduler/framework/parallelize"
 )
@@ -66,7 +67,7 @@ func (h *FakeHandle) SharedInformerFactory() informers.SharedInformerFactory {
 	panic("unimplemented")
 }
 
-func (h *FakeHandle) RunFilterPluginsWithNominatedPods(ctx context.Context, state *framework.CycleState, pod *v1.Pod, info *framework.NodeInfo) (s *framework.Status) {
+func (h *FakeHandle) RunFilterPluginsWithNominatedPods(ctx context.Context, state *framework.CycleState, pod *v1.Pod, info *framework.NodeInfo) (s *fwk.Status) {
 	panic("unimplemented")
 }
 
@@ -137,23 +138,23 @@ func (h *FakeHandle) RejectWaitingPod(uid types.UID) (b bool) {
 	return uid == types.UID("handle-test")
 }
 
-func (h *FakeHandle) RunPreScorePlugins(context.Context, *framework.CycleState, *v1.Pod, []*framework.NodeInfo) (s *framework.Status) {
+func (h *FakeHandle) RunPreScorePlugins(context.Context, *framework.CycleState, *v1.Pod, []*framework.NodeInfo) (s *fwk.Status) {
 	panic("unimplemented")
 }
 
-func (h *FakeHandle) RunScorePlugins(context.Context, *framework.CycleState, *v1.Pod, []*framework.NodeInfo) (n []framework.NodePluginScores, s *framework.Status) {
+func (h *FakeHandle) RunScorePlugins(context.Context, *framework.CycleState, *v1.Pod, []*framework.NodeInfo) (n []framework.NodePluginScores, s *fwk.Status) {
 	panic("unimplemented")
 }
 
-func (h *FakeHandle) RunFilterPlugins(context.Context, *framework.CycleState, *v1.Pod, *framework.NodeInfo) (s *framework.Status) {
+func (h *FakeHandle) RunFilterPlugins(context.Context, *framework.CycleState, *v1.Pod, *framework.NodeInfo) (s *fwk.Status) {
 	panic("unimplemented")
 }
 
-func (h *FakeHandle) RunPreFilterExtensionAddPod(ctx context.Context, state *framework.CycleState, podToSchedule *v1.Pod, podInfoToAdd *framework.PodInfo, nodeInfo *framework.NodeInfo) (s *framework.Status) {
+func (h *FakeHandle) RunPreFilterExtensionAddPod(ctx context.Context, state *framework.CycleState, podToSchedule *v1.Pod, podInfoToAdd *framework.PodInfo, nodeInfo *framework.NodeInfo) (s *fwk.Status) {
 	panic("unimplemented")
 }
 
-func (h *FakeHandle) RunPreFilterExtensionRemovePod(ctx context.Context, state *framework.CycleState, podToSchedule *v1.Pod, podInfoToRemove *framework.PodInfo, nodeInfo *framework.NodeInfo) (s *framework.Status) {
+func (h *FakeHandle) RunPreFilterExtensionRemovePod(ctx context.Context, state *framework.CycleState, podToSchedule *v1.Pod, podInfoToRemove *framework.PodInfo, nodeInfo *framework.NodeInfo) (s *fwk.Status) {
 	panic("unimplemented")
 }
 
